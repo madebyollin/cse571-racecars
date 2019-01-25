@@ -32,6 +32,8 @@ We will evaluate our system by measuring:
 
 ## Prior Work
 
+> TODO: fill this out
+
 - https://www.researchgate.net/publication/326019139_HUMAN_FOLLOWING_ON_ROS_FRAMEWORK_A_MOBILE_ROBOT
 - https://medium.com/@waleedmansoor/make-human-following-robot-using-realsense-camera-3a67b29921fd
 - https://www.semanticscholar.org/paper/Integrating-Stereo-Vision-with-a-CNN-Tracker-for-a-Chen-Sahdev/2067a5a4e8851bf8083285a33f542229792f1826
