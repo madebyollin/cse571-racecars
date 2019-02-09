@@ -12,3 +12,6 @@
 To run yolo on the robot:
 
 `roslaunch darknet_ros darknet_ros.launch`
+
+# Topic Graph
+![](./rosgraph.png)
