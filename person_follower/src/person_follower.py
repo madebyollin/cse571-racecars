@@ -19,8 +19,14 @@ class PersonFollower():
             # TODO: fix this
             bb = self.person_bounding_box
             if bb is not None:
-                angle =  -2 * ((bb.xmin + bb.xmax)/2.0 / 640.0 - 0.5)
-                print("angle is", angle)
+                boxCenter = (bb.xmin + bb.xmax)/2.0
+		ratio = boxCenter/640.0
+		angle = (-0.34 + ratio*0.64)*-1.0
+		#print ratio
+		
+		
+                
+		print("angle is", angle)
                 #pub.publish()
                 #print "self.person_bounding_box is ", self.person_bounding_box
                 pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle)))
