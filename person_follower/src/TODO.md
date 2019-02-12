@@ -9,7 +9,7 @@
 
 #### add longitudinal control
 
-- [ ] Check the size of the current bounding box and drive forward or backwards by a small amount in order to achieve a target size
+- [ ] Check the size of the current bounding box and drive forward or backwards by a small amount in order to achieve a target size *EDIT:* or use the depth camera masked to the bounding-box region
 
 #### create new nodes
 
