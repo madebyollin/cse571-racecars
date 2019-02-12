@@ -3,7 +3,7 @@ import rospy
 from std_msgs.msg import Header
 from darknet_ros_msgs.msg import BoundingBoxes
 from ackermann_msgs.msg import AckermannDriveStamped, AckermannDrive
-from sensor_msgs.msg import Joy
+
 
 class PersonFollower():
     IMAGE_WIDTH = 640
@@ -11,13 +11,10 @@ class PersonFollower():
     SERVO_RANGE = 0.68
     def __init__(self):
         self.person_bounding_box = None
-	self.right_bumper = 0
         rospy.init_node("person_follower", anonymous=True)
-        sub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, lambda x: self.cb(x))
-        
-	sub2 = rospy.Subscriber('/vesc/joy', Joy, self.right_bump)
-	pub = rospy.Publisher('/vesc/low_level/ackermann_cmd_mux/input/teleop', AckermannDriveStamped, queue_size=10)
-        rate = rospy.Rate(10)
+        sub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.cb)
+        pub = rospy.Publisher('/vesc/low_level/ackermann_cmd_mux/input/teleop', AckermannDriveStamped, queue_size=10)
+        rate = rospy.Rate(50)
         seq = 0
         while not rospy.is_shutdown():
             seq += 1
@@ -35,29 +32,21 @@ class PersonFollower():
 		print("angle is", angle)
                 #pub.publish()
                 #print "self.person_bounding_box is ", self.person_bounding_box
-                if self.right_bumper:
-                    #pub.publish(AckermannDriveStamped(header, AckermannDrive(speed=0.5)))
-                    pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle, speed=0.5)))
+                pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle)))
             rate.sleep()
         rospy.spin()
 
-    def right_bump(self, data):
-	self.right_bumper = data.buttons[5]
-        
-
-
     def cb(self, data):
-
         for bounding_box in data.bounding_boxes:
             if bounding_box.Class == "person":
                 #print("Person detected! Confidence", bounding_box.probability)
                 bb = bounding_box
                 size = abs(bb.xmax - bb.xmin) * abs(bb.ymax - bb.ymin)
-                if bounding_box.probability > 0.8 and size > 0.03 * 640 * 480:
+                if bounding_box.probability > 0.8 and size > 0.05 * 640 * 480:
                     self.person_bounding_box = bounding_box 
                 break
         else:
-            self.person_bounding_box = None
+            pass
             # print("No person found :( lonely robot is sad") 
 
 

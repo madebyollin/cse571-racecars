@@ -6,43 +6,44 @@ from ackermann_msgs.msg import AckermannDriveStamped, AckermannDrive
 from sensor_msgs.msg import Joy
 
 class PersonFollower():
-    IMAGE_WIDTH = 640
-    IMAGE_HEIGHT = 480
-    SERVO_RANGE = 0.68
     def __init__(self):
+        IMAGE_WIDTH = 640
+        IMAGE_HEIGHT = 480
+        SERVO_RANGE = 0.34
+        MAX_PERCENT_OF_FRAME = 0.27
+        MIN_PERCENT_OF_FRAME = 0.18
         self.person_bounding_box = None
-	self.right_bumper = 0
+	self.right_bumper = False
+        # node setup
         rospy.init_node("person_follower", anonymous=True)
         sub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, lambda x: self.cb(x))
-        
-	sub2 = rospy.Subscriber('/vesc/joy', Joy, self.right_bump)
+	joy_sub = rospy.Subscriber('/vesc/joy', Joy, self.right_bump)
 	pub = rospy.Publisher('/vesc/low_level/ackermann_cmd_mux/input/teleop', AckermannDriveStamped, queue_size=10)
-        rate = rospy.Rate(10)
+        rate = rospy.Rate(30)
         seq = 0
         while not rospy.is_shutdown():
             seq += 1
             header = Header(seq=seq, stamp=rospy.Time.now())
-            # TODO: fix this
             bb = self.person_bounding_box
             if bb is not None:
-                boxCenter = (bb.xmin + bb.xmax)/2.0
-		ratio = boxCenter/640.0
-		angle = (-0.34 + ratio*0.64)*-1.0
-		#print ratio
-		
-		
-                
-		print("angle is", angle)
-                #pub.publish()
-                #print "self.person_bounding_box is ", self.person_bounding_box
+                boxCenter = (bb.xmin + bb.xmax) / 2.0
+		ratio = boxCenter / 640.0
+		angle = -1 * (-SERVO_RANGE + ratio * 2 * SERVO_RANGE)
+                percent_of_frame = (abs(bb.xmax - bb.xmin) * abs(bb.ymax - bb.ymin)) / (640.0 * 480.0)
+                speed = 0
+                if percent_of_frame > MAX_PERCENT_OF_FRAME:
+                    speed = -0.5
+                    angle = -angle
+                elif percent_of_frame < MIN_PERCENT_OF_FRAME:
+                    speed = 0.5
+		print("angle is", angle, "speed is", speed, "percent of frame is", percent_of_frame)
                 if self.right_bumper:
-                    #pub.publish(AckermannDriveStamped(header, AckermannDrive(speed=0.5)))
-                    pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle, speed=0.5)))
+                    pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle, speed=speed)))
             rate.sleep()
         rospy.spin()
 
     def right_bump(self, data):
-	self.right_bumper = data.buttons[5]
+	self.right_bumper = bool(data.buttons[5])
         
 
 
