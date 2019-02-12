@@ -4,12 +4,20 @@
 
 - [ ] take our main algorithm out of ```__init__``` 
 - [ ] launch file to launch multi nodes
-- [ ] fix conflict between joystick and our personfollow algorithm (don't send servo order at the same time)
+- [x] fix conflict between joystick and our personfollow algorithm (don't send servo order at the same time)
 
 
 #### add longitudinal control
 
-- [ ] Check the size of the current bounding box and drive forward or backwards by a small amount in order to achieve a target size *EDIT:* or use the depth camera masked to the bounding-box region
+- [x] **Level 0:** Check the size of the current bounding box and drive forward or backwards by a small amount in order to achieve a target size
+- [ ] **Level 1:** use the depth camera masked to the bounding-box region to compute a current depth, and adjust the speed towards a target depth.
+
+#### cross-frame tracking
+
+- [ ] **Level 0:** Always track the largest box
+- [ ] **Level 1:** Use area-of-intersection to compute which box corresponds to the tracked box from the previous frame
+- [ ] **Level 2:** Use a kalman filter (or hand-coded filter) to estimate position if the bounding box is no longer visible
+- [ ] **Bonus:** Use visual features compute box correspondences
 
 #### create new nodes
 
