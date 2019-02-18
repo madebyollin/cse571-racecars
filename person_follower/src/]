@@ -10,10 +10,11 @@ class PersonFollower():
         IMAGE_WIDTH = 640
         IMAGE_HEIGHT = 480
         SERVO_RANGE = 0.34
-        MAX_PERCENT_OF_FRAME = 0.27
-        MIN_PERCENT_OF_FRAME = 0.18
+        MAX_PERCENT_OF_FRAME = 0.25
+        MIN_PERCENT_OF_FRAME = 0.2
         self.person_bounding_box = None
 	self.right_bumper = False
+        self.smooth_speed = 0
         # node setup
         rospy.init_node("person_follower", anonymous=True)
         sub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, lambda x: self.cb(x))
@@ -36,9 +37,10 @@ class PersonFollower():
                     angle = -angle
                 elif percent_of_frame < MIN_PERCENT_OF_FRAME:
                     speed = 0.5
-		print("angle is", angle, "speed is", speed, "percent of frame is", percent_of_frame)
+                self.smooth_speed = 0.5 * speed + 0.5 * self.smooth_speed
+		print("angle is", angle, "speed is", self.smooth_speed, "percent of frame is", percent_of_frame)
                 if self.right_bumper:
-                    pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle, speed=speed)))
+                    pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle, speed=self.speed)))
             rate.sleep()
         rospy.spin()
 
