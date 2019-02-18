@@ -14,8 +14,8 @@ class PersonFollower():
         IMAGE_WIDTH = 640
         IMAGE_HEIGHT = 480
         SERVO_RANGE = 0.34
-        MAX_DEPTH = 1750
-        MIN_DEPTH = 1500
+        MAX_DEPTH = 2250
+        MIN_DEPTH = 2000
 
         # state from subscribers
         self.person_bounding_box = None
@@ -40,11 +40,11 @@ class PersonFollower():
 		angle = -1 * (-SERVO_RANGE + ratio * 2 * SERVO_RANGE)
                 speed = 0
                 if 0 < self.person_depth < MIN_DEPTH:
-                    speed = -0.5# - min(abs(MIN_DEPTH - self.person_depth) / 1000.0, 0.5)
+                    speed = -0.5 - min(abs(MIN_DEPTH - self.person_depth) / 1000, 1)
                     angle = -angle
                 elif self.person_depth > MAX_DEPTH:
-                    speed = 0.5 #+ min(abs(MAX_DEPTH - self.person_depth) / 1000.0, 0.5)
-		# print("angle is", angle, "speed is", speed)
+                    speed = 0.5 + min(abs(MIN_DEPTH - self.person_depth) / 1000, 1)
+		print("angle is", angle, "speed is", speed)
                 if self.right_bumper:
                     pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle, speed=speed)))
             rate.sleep()
@@ -72,7 +72,7 @@ class PersonFollower():
             # (with depths in the center of the bounding box higher-weighted)
             # to smooth noise
             averaged_depth = image[y_avg, x_avg]
-            print "person at", x_avg, y_avg, "has depth", averaged_depth, "and size", person_region.size / (640.0 * 480)
+            print "person at", x_avg, y_avg, "has depth", averaged_depth
             self.person_depth = averaged_depth
         else:
             print "no person"
@@ -81,7 +81,7 @@ class PersonFollower():
         best_match = None
         best_intersect = 0.0 
 
-        person_bounding_boxes = filter(lambda x: x.Class == "person" and x.probability > 0.6 and size_of_bounding_box(x) / (640 * 480.0) > 0.05, data.bounding_boxes)
+        person_bounding_boxes = filter(lambda x: x.Class == "person" and x.probability > 0.8, data.bounding_boxes)
         if self.person_bounding_box == None and person_bounding_boxes:
             best_intersect = 1
             # find the biggest person bounding box and follow that

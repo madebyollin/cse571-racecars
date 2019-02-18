@@ -12,6 +12,9 @@ class PersonFollower():
         SERVO_RANGE = 0.34
         MAX_PERCENT_OF_FRAME = 0.27
         MIN_PERCENT_OF_FRAME = 0.18
+        
+        
+        self.last_box = None
         self.person_bounding_box = None
 	self.right_bumper = False
         # node setup
@@ -36,7 +39,7 @@ class PersonFollower():
                     angle = -angle
                 elif percent_of_frame < MIN_PERCENT_OF_FRAME:
                     speed = 0.5
-		print("angle is", angle, "speed is", speed, "percent of frame is", percent_of_frame)
+		#print("angle is", angle, "speed is", speed, "percent of frame is", percent_of_frame)
                 if self.right_bumper:
                     pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle, speed=speed)))
             rate.sleep()
@@ -45,19 +48,47 @@ class PersonFollower():
     def right_bump(self, data):
 	self.right_bumper = bool(data.buttons[5])
         
-
+    def area(self, a, b):
+        dx = min(a.xmax, b.xmax) - max(a.xmin, b.xmin)
+        dy = min(a.ymax, b.ymax) - max(a.ymin, b.ymin)
+        if (dx >= 0) and (dy >= 0):
+            return dx*dy
 
     def cb(self, data):
+        
+        best_match = None
+        best_intersect = 0.0 
+        box_found = False
 
         for bounding_box in data.bounding_boxes:
-            if bounding_box.Class == "person":
+            bb = bounding_box
+            size = abs(bb.xmax - bb.xmin) * abs(bb.ymax - bb.ymin)
+            if bounding_box.Class == "person" and bounding_box.probability > 0.8 and size > 0.03 * 640 * 480:
                 #print("Person detected! Confidence", bounding_box.probability)
-                bb = bounding_box
-                size = abs(bb.xmax - bb.xmin) * abs(bb.ymax - bb.ymin)
-                if bounding_box.probability > 0.8 and size > 0.03 * 640 * 480:
-                    self.person_bounding_box = bounding_box 
-                break
-        else:
+                
+                
+                if self.last_box == None:
+                    best_intersect = 1
+                    self.person_bounding_box = bounding_box
+                    self.last_box = bounding_box
+                    box_found = True
+                    break
+                else:
+                    intersect = self.area(bb, self.last_box)
+                    if intersect > best_intersect:
+                        best_match = bb
+                        best_intersect = intersect
+                        box_found = True
+            self.last_box = best_match
+            self.person_bounding_box = best_match
+        if box_found:
+            p = self.last_box
+            prev_area = (p.ymax - p.ymin) * (p.xmax - p.xmin)
+
+
+            print "Intersect percentage:", best_intersect / (1.0 * prev_area )
+            #print self.person_bounding_box.xmax
+        if box_found == False:
             self.person_bounding_box = None
             # print("No person found :( lonely robot is sad") 
 
