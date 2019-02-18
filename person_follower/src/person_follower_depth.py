@@ -38,13 +38,11 @@ class PersonFollower():
                 boxCenter = (bb.xmin + bb.xmax) / 2.0
 		ratio = boxCenter / 640.0
 		angle = -1 * (-SERVO_RANGE + ratio * 2 * SERVO_RANGE)
-                speed = 0
-                if 0 < self.person_depth < MIN_DEPTH:
-                    speed = -0.5# - min(abs(MIN_DEPTH - self.person_depth) / 1000.0, 0.5)
+                if 0 < self.person_depth < MIN_DEPTH or abs(angle) > 0.2:
+                    speed = -0.5
                     angle = -angle
                 elif self.person_depth > MAX_DEPTH:
-                    speed = 0.5 #+ min(abs(MAX_DEPTH - self.person_depth) / 1000.0, 0.5)
-		# print("angle is", angle, "speed is", speed)
+                    speed = 0.5
                 if self.right_bumper:
                     pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle, speed=speed)))
             rate.sleep()
@@ -70,10 +68,11 @@ class PersonFollower():
             y_avg = (bb.ymin + bb.ymax) / 2
             # NOTE: this could be replaced with a smarter weighted average
             # (with depths in the center of the bounding box higher-weighted)
-            # to smooth noise
-            averaged_depth = image[y_avg, x_avg]
-            print "person at", x_avg, y_avg, "has depth", averaged_depth, "and size", person_region.size / (640.0 * 480)
-            self.person_depth = averaged_depth
+            # only update depth if we can actually see them
+            if 0 <= x_avg < 640 and 0 < y_avg <= 480:
+                averaged_depth = image[y_avg, x_avg]
+                print "person at", x_avg, y_avg, "has depth", averaged_depth, "and size", person_region.size / (640.0 * 480)
+                self.person_depth = averaged_depth
         else:
             print "no person"
 
@@ -100,9 +99,12 @@ class PersonFollower():
             prev_area = best_intersect # whatever
             if p is not None:
                 prev_area = (p.ymax - p.ymin) * (p.xmax - p.xmin)
-            # print "Intersect percentage:", best_intersect / (1.0 * prev_area )
+            print "Intersect percentage:", best_intersect / (1.0 * prev_area )
         self.person_bounding_box = best_match
 
+def center_of_bounding_box(bounding_box):
+    return np.array([(bounding_box.xmax + bounding_box.xmin)/2.0,
+            (bounding_box.ymax + bounding_box.ymin)/2.0])
 def size_of_bounding_box(bounding_box):
     return abs(bounding_box.xmax - bounding_box.xmin) * abs(bounding_box.ymax - bounding_box.ymin)
 
