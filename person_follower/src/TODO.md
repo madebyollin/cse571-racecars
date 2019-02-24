@@ -10,12 +10,12 @@
 #### add longitudinal control
 
 - [x] **Level 0:** Check the size of the current bounding box and drive forward or backwards by a small amount in order to achieve a target size
-- [ ] **Level 1:** use the depth camera masked to the bounding-box region to compute a current depth, and adjust the speed towards a target depth.
+- [x] **Level 1:** use the depth camera masked to the bounding-box region to compute a current depth, and adjust the speed towards a target depth.
 
 #### cross-frame tracking
 
-- [ ] **Level 0:** Always track the largest box
-- [ ] **Level 1:** Use area-of-intersection to compute which box corresponds to the tracked box from the previous frame
+- [x] **Level 0:** Always track the largest box
+- [x] **Level 1:** Use area-of-intersection to compute which box corresponds to the tracked box from the previous frame
 - [ ] **Level 2:** Use a kalman filter (or hand-coded filter) to estimate position if the bounding box is no longer visible
 - [ ] **Bonus:** Use visual features compute box correspondences
 
