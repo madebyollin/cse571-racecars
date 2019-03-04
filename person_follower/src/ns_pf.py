@@ -2,7 +2,7 @@
 import rospy
 from cv_bridge import CvBridge
 from std_msgs.msg import Header
-from darknet_ros_msgs.msg import BoundingBox
+from darknet_ros_msgs.msg import BoundingBoxes,BoundingBox
 from ackermann_msgs.msg import AckermannDriveStamped, AckermannDrive
 from sensor_msgs.msg import Joy, Image
 import numpy as np

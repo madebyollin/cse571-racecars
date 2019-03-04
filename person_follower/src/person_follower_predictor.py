@@ -6,8 +6,6 @@ from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
 from ackermann_msgs.msg import AckermannDriveStamped, AckermannDrive
 from sensor_msgs.msg import Joy, Image
 import numpy as np
-import message_filters
-import cv2
 
 br = CvBridge()
 
@@ -25,34 +23,6 @@ class PersonTracker:
         # Predictions
         self.predicted_bounding_box = None
         self.predicted_depth = None
-        self.prediction_confidence = 0
-        self.tracker_pub = rospy.Publisher('/personfollower/tracker_box', BoundingBox, queue_size=10)
-
-        self.average_tracked = None
-    def img_cb(self, sub, img):
-        image = br.imgmsg_to_cv2(img)
-        # No average tracked box
-        if self.average_tracked is None:
-            if self.predicted_bounding_box:
-                bb = self.predicted_bounding_box 
-                person_region = image[bb.ymin:bb.ymax, bb.xmin:bb.xmax]
-                self.average_tracked = cv2.resize(person_region, (64,128)) 
-        else:
-            if self.predicted_bounding_box:
-                bb = self.predicted_bounding_box
-                person_region = image[bb.ymin:bb.ymax, bb.xmin:bb.xmax]
-                
-                if person_region.size < 4:
-                    return
-                resized = cv2.resize(person_region, (64,128))
-                
-                similarity = (1 - np.mean(np.abs(self.average_tracked - resized))/255.0)
-                print similarity
-                
-                if img.header.seq % 100 == 0:
-                    cv2.imwrite('average.png', self.average_tracked) 
-                self.average_tracked = self.average_tracked*0.9+0.1*resized
-
 
     def depth_cb(self, data):
         """Callback for messages from the depth camera. Relies on self.person_bounding_box and sets self.person_depth"""
@@ -69,62 +39,75 @@ class PersonTracker:
             # only update depth if we can actually see them
             if 0 <= x_avg < CAMERA_WIDTH and 0 < y_avg <= CAMERA_HEIGHT:
                 averaged_depth = image[y_avg, x_avg]
-                #print "person at", x_avg, y_avg, "has depth", averaged_depth, "and size", person_region.size / float(CAMERA_AREA)
-                # self.depth = averaged_depth
                 self.depths.append((rospy.get_time(), averaged_depth))
                 self.update_prediction()
                 if len(self.depths) > 10:
                     self.depths.pop(0)
-        else:
-            print "no person"
 
-    def compute_predicted_depth():
-        first_sample = None
-        last_sample = None
-        # figure out first and last "real" depth samples
+    def compute_predicted_depth(self):
+        times = [] 
+        depths = []
         for sample in self.depths:
-            if sample[1] is not None:
-                if first_sample is None:
-                    first_sample = sample
-                last_sample = sample
-        if first_sample is None or last_sample is None:
-            self.prediction_confidence = 0
-        else:
-            # figure out average depth change per unit time
-            depth_vel = (last_sample[1] - first_sample[1]) / (last_sample[0] - first_sample[0])
-            # add this to the most recent sample to get a prediction
-            time_since_last_sample = rospy.get_time() - last_sample[0]
-            self.predicted_depth = last_sample[1] + depth_vel * time_since_last_sample
-            self.prediction_confidence = max(0, 1 - time_since_last_sample / CONFIDENCE_DECAY_TIME)
+            if sample[1] > 0:
+                times.append(sample[0])
+                depths.append(sample[1])
+        if len(depths) < 3:
+            return 0
+        m, b = np.polyfit(times, depths, 1)
+        predicted_depth = b + m * rospy.get_time()
+        # figure out average depth change per unit time
+        # depth_vel = (last_sample[1] - first_sample[1]) / (last_sample[0] - first_sample[0])
+        # add this to the most recent sample to get a prediction
+        # time_since_last_sample = rospy.get_time() - last_sample[0]
+        return predicted_depth
 
-    def compute_predicted_bounding_box():
-        first_sample = None
-        last_sample = None
+    def compute_predicted_bounding_box(self):
+        times = []
+        x_samples = []
+        y_samples = []
+        last_box = None
         # figure out first and last "real" bounding_box samples
         for sample in self.bounding_boxes:
             if sample[1] is not None:
-                if first_sample is None:
-                    first_sample = sample
-                last_sample = sample
-        if first_sample is None or last_sample is None:
-            self.prediction_confidence = 0
-        else:
-            # figure out average bounding_box change per unit time
-            bounding_box_vel = (last_sample[1] - first_sample[1]) / (last_sample[0] - first_sample[0])
-            # add this to the most recent sample to get a prediction
-            time_since_last_sample = rospy.get_time() - last_sample[0]
-            self.predicted_bounding_box = last_sample[1] + depth_vel * time_since_last_sample
-            self.prediction_confidence = max(0, 1 - time_since_last_sample / CONFIDENCE_DECAY_TIME)
+                last_box = sample[1]
+                times.append(sample[0])
+                ctr = center_of_bounding_box(sample[1])
+                x_samples.append(ctr[0])
+                y_samples.append(ctr[1])
+        if len(times) < 3:
+            return None
+        x_m, x_b = np.polyfit(times, x_samples, 1)
+        y_m, y_b = np.polyfit(times, y_samples, 1)
+        # figure out average bounding_box change per unit time
+        # compute the expected offset
+        t = rospy.get_time()
+        pred_ctr = np.array([x_m * t + x_b, y_m * t + y_b])
+        offset_ctr = pred_ctr - center_of_bounding_box(last_box) 
+        # add this to the most recent sample to get a prediction
+        time_since_last_sample = t - times[-1]
+        prediction_confidence = max(0, last_box.probability - time_since_last_sample / CONFIDENCE_DECAY_TIME)
+        return BoundingBox(
+            Class="person",
+            probability=prediction_confidence,
+            xmin=last_box.xmin + offset_ctr[0],
+            xmax=last_box.xmax + offset_ctr[0],
+            ymin=last_box.ymin + offset_ctr[1],
+            ymax=last_box.ymax + offset_ctr[1]
+        )
 
     def update_prediction(self):
-        # TODO: replace with something smarter, maybe?
+        # Depths
         _, depth = self.depths[-1]
-        #if depth is None:
-        #    depth = self.compute_predicted_depth()
-        self.predicted_depth = depth
+        if depth == 0:
+            depth = self.compute_predicted_depth()
+        # Bounding boxes
         _, bb = self.bounding_boxes[-1]
-        #if bb is None:
-        #    bb = self.compute_predicted_bb()
+        if bb is None:
+            bb = self.compute_predicted_bounding_box()
+        if depth > 0 and bb is not None:
+            print "Location\t", center_of_bounding_box(bb), "depth\t", depth, "confidence\t", bb.probability
+        # Save to be broadcasted
+        self.predicted_depth = depth
         self.predicted_bounding_box = bb
 
     def bounding_box_cb(self, data):
@@ -167,14 +150,9 @@ class PersonFollower:
         self.last_speed = 0
         self.last_angle = 0
         # subscriber setup
-        sub = message_filters.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes)
+        sub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.tracker.bounding_box_cb)
         depth_sub = rospy.Subscriber('/camera/depth/image_rect_raw', Image, self.tracker.depth_cb)
 	joy_sub = rospy.Subscriber('/vesc/joy', Joy, self.right_bump)
-        
-        img_sub = message_filters.Subscriber('/camera/color/image_raw', Image)
-        ts = message_filters.ApproximateTimeSynchronizer([sub, img_sub], 10, 0.1)
-        sub.registerCallback(self.tracker.bounding_box_cb)
-        ts.registerCallback(self.tracker.img_cb)
         # publisher setup
 	pub = rospy.Publisher('/vesc/low_level/ackermann_cmd_mux/input/teleop', AckermannDriveStamped, queue_size=10)
         seq = 0
@@ -182,8 +160,6 @@ class PersonFollower:
         while not rospy.is_shutdown():
             seq += 1
             header = Header(seq=seq, stamp=rospy.Time.now())
-            if self.tracker.predicted_bounding_box != None:
-                self.tracker.tracker_pub.publish(self.tracker.predicted_bounding_box)
             angle, speed = self.get_steering_direction()
             if self.right_bumper and angle and speed:
                 pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle, speed=speed)))
@@ -192,32 +168,32 @@ class PersonFollower:
 
     def get_steering_direction(self):
         # main planning / control code!
-        # relies on having a bounding box in self.tracker.bounding_box
+        # relies on having a bounding box in self.tracker.predicted_bounding_box
         SERVO_RANGE = 0.34
         MAX_DEPTH = 1750
         MIN_DEPTH = 1500
 
-        angle = None
-        speed = None
+        angle = 0
+        speed = 0
         bb = self.tracker.predicted_bounding_box
         depth = self.tracker.predicted_depth
         if bb is None:
             time_elapsed = rospy.get_time() - self.last_bounding_box_timestamp 
             # up to 5 seconds
-            if time_elapsed < CONFIDENCE_DECAY_TIME:
-                angle = self.last_angle
-                speed = self.last_speed
-        else:
+            #if time_elapsed < CONFIDENCE_DECAY_TIME:
+            #    angle = self.last_angle
+            #    speed = self.last_speed
+        elif bb.probability > 0.1:
             self.last_bounding_box_timestamp = rospy.get_time()
             speed = 0
             boxCenter = (bb.xmin + bb.xmax) / 2.0
             ratio = boxCenter / float(CAMERA_WIDTH)
             angle = -1 * (-SERVO_RANGE + ratio * 2 * SERVO_RANGE)
             if 0 < depth < MIN_DEPTH:
-                speed = -0.6
+                speed = -0.5
                 angle = -angle
             elif depth > MAX_DEPTH:
-                speed = 0.55
+                speed = 0.5
         self.last_angle = angle
         self.last_speed = speed
         return angle, speed

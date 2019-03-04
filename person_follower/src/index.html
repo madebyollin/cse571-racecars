@@ -1,0 +1,21 @@
+<style>
+    html, body {
+        margin: 0;
+    }
+    body {
+        background: black;
+    }
+    img {
+        display: block;
+        margin: 0 auto;
+        margin-top: 50vh;
+        transform:translateY(-50%)
+    }
+</style>
+<img src="average.png"/>
+<script>
+    let img = document.querySelector("img");
+    window.setInterval(() => {
+        img.src = "average.png?" + new Date().getTime();
+    }, 500)    
+</script>

@@ -2,7 +2,7 @@
 import rospy
 from cv_bridge import CvBridge
 from std_msgs.msg import Header
-from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
+from darknet_ros_msgs.msg import BoundingBoxes
 from ackermann_msgs.msg import AckermannDriveStamped, AckermannDrive
 from sensor_msgs.msg import Joy, Image
 import numpy as np
@@ -26,7 +26,7 @@ class PersonTracker:
         self.predicted_bounding_box = None
         self.predicted_depth = None
         self.prediction_confidence = 0
-        self.tracker_pub = rospy.Publisher('/personfollower/tracker_box', BoundingBox, queue_size=10)
+        
 
         self.average_tracked = None
     def img_cb(self, sub, img):
@@ -42,14 +42,12 @@ class PersonTracker:
                 bb = self.predicted_bounding_box
                 person_region = image[bb.ymin:bb.ymax, bb.xmin:bb.xmax]
                 
-                if person_region.size < 4:
+                if person_region.size < 10:
                     return
                 resized = cv2.resize(person_region, (64,128))
                 
-                similarity = (1 - np.mean(np.abs(self.average_tracked - resized))/255.0)
-                print similarity
-                
-                if img.header.seq % 100 == 0:
+                print (1 - np.mean(np.abs(self.average_tracked - resized))/255.0)
+                if img.header.seq % 30 == 0:
                     cv2.imwrite('average.png', self.average_tracked) 
                 self.average_tracked = self.average_tracked*0.9+0.1*resized
 
@@ -182,8 +180,6 @@ class PersonFollower:
         while not rospy.is_shutdown():
             seq += 1
             header = Header(seq=seq, stamp=rospy.Time.now())
-            if self.tracker.predicted_bounding_box != None:
-                self.tracker.tracker_pub.publish(self.tracker.predicted_bounding_box)
             angle, speed = self.get_steering_direction()
             if self.right_bumper and angle and speed:
                 pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle, speed=speed)))
@@ -214,10 +210,10 @@ class PersonFollower:
             ratio = boxCenter / float(CAMERA_WIDTH)
             angle = -1 * (-SERVO_RANGE + ratio * 2 * SERVO_RANGE)
             if 0 < depth < MIN_DEPTH:
-                speed = -0.6
+                speed = -0.5
                 angle = -angle
             elif depth > MAX_DEPTH:
-                speed = 0.55
+                speed = 0.5
         self.last_angle = angle
         self.last_speed = speed
         return angle, speed

@@ -2,12 +2,11 @@
 import rospy
 from cv_bridge import CvBridge
 from std_msgs.msg import Header
-from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
+from darknet_ros_msgs.msg import BoundingBoxes
 from ackermann_msgs.msg import AckermannDriveStamped, AckermannDrive
 from sensor_msgs.msg import Joy, Image
+from 
 import numpy as np
-import message_filters
-import cv2
 
 br = CvBridge()
 
@@ -26,33 +25,6 @@ class PersonTracker:
         self.predicted_bounding_box = None
         self.predicted_depth = None
         self.prediction_confidence = 0
-        self.tracker_pub = rospy.Publisher('/personfollower/tracker_box', BoundingBox, queue_size=10)
-
-        self.average_tracked = None
-    def img_cb(self, sub, img):
-        image = br.imgmsg_to_cv2(img)
-        # No average tracked box
-        if self.average_tracked is None:
-            if self.predicted_bounding_box:
-                bb = self.predicted_bounding_box 
-                person_region = image[bb.ymin:bb.ymax, bb.xmin:bb.xmax]
-                self.average_tracked = cv2.resize(person_region, (64,128)) 
-        else:
-            if self.predicted_bounding_box:
-                bb = self.predicted_bounding_box
-                person_region = image[bb.ymin:bb.ymax, bb.xmin:bb.xmax]
-                
-                if person_region.size < 4:
-                    return
-                resized = cv2.resize(person_region, (64,128))
-                
-                similarity = (1 - np.mean(np.abs(self.average_tracked - resized))/255.0)
-                print similarity
-                
-                if img.header.seq % 100 == 0:
-                    cv2.imwrite('average.png', self.average_tracked) 
-                self.average_tracked = self.average_tracked*0.9+0.1*resized
-
 
     def depth_cb(self, data):
         """Callback for messages from the depth camera. Relies on self.person_bounding_box and sets self.person_depth"""
@@ -60,7 +32,7 @@ class PersonTracker:
         image = br.imgmsg_to_cv2(data)
         timestamp, bb = self.bounding_boxes[-1]
         if bb is not None:
-            person_region = image[bb.ymin:bb.ymax, bb.xmin:bb.xmax]
+            person_region = image[bb.xmin:bb.xmax, bb.ymin:bb.ymax]
             # averaged_depth = np.mean(person_region)
             x_avg = (bb.xmin + bb.xmax) / 2
             y_avg = (bb.ymin + bb.ymax) / 2
@@ -69,7 +41,7 @@ class PersonTracker:
             # only update depth if we can actually see them
             if 0 <= x_avg < CAMERA_WIDTH and 0 < y_avg <= CAMERA_HEIGHT:
                 averaged_depth = image[y_avg, x_avg]
-                #print "person at", x_avg, y_avg, "has depth", averaged_depth, "and size", person_region.size / float(CAMERA_AREA)
+                print "person at", x_avg, y_avg, "has depth", averaged_depth, "and size", person_region.size / float(CAMERA_AREA)
                 # self.depth = averaged_depth
                 self.depths.append((rospy.get_time(), averaged_depth))
                 self.update_prediction()
@@ -131,10 +103,11 @@ class PersonTracker:
         """Callback for messages from yolo. Sets self.person_bounding_box to be the largest / best matching bounding box"""
         best_match = None
         best_intersect = 0.0 
-        person_bounding_boxes = [x for x in data.bounding_boxes if x.Class == "person" and x.probability > 0.7 and size_of_bounding_box(x) / float(CAMERA_AREA) > 0.05]
+        person_bounding_boxes = [x for x in data.bounding_boxes if x.Class == "person" and x.probability > 0.55 and size_of_bounding_box(x) / float(CAMERA_AREA) > 0.05]
         if self.predicted_bounding_box == None and person_bounding_boxes:
             best_intersect = 1
             # find the biggest person bounding box and follow that
+            
             best_match = max(person_bounding_boxes, key=size_of_bounding_box)
         else:
             # if there is a person we're tracking
@@ -167,14 +140,10 @@ class PersonFollower:
         self.last_speed = 0
         self.last_angle = 0
         # subscriber setup
-        sub = message_filters.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes)
+        sub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.tracker.bounding_box_cb)
         depth_sub = rospy.Subscriber('/camera/depth/image_rect_raw', Image, self.tracker.depth_cb)
 	joy_sub = rospy.Subscriber('/vesc/joy', Joy, self.right_bump)
-        
-        img_sub = message_filters.Subscriber('/camera/color/image_raw', Image)
-        ts = message_filters.ApproximateTimeSynchronizer([sub, img_sub], 10, 0.1)
-        sub.registerCallback(self.tracker.bounding_box_cb)
-        ts.registerCallback(self.tracker.img_cb)
+        odom_sub = rospy.Subscriber('vsec/odom/twist/twist', Odom, self.odom)
         # publisher setup
 	pub = rospy.Publisher('/vesc/low_level/ackermann_cmd_mux/input/teleop', AckermannDriveStamped, queue_size=10)
         seq = 0
@@ -182,8 +151,6 @@ class PersonFollower:
         while not rospy.is_shutdown():
             seq += 1
             header = Header(seq=seq, stamp=rospy.Time.now())
-            if self.tracker.predicted_bounding_box != None:
-                self.tracker.tracker_pub.publish(self.tracker.predicted_bounding_box)
             angle, speed = self.get_steering_direction()
             if self.right_bumper and angle and speed:
                 pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle, speed=speed)))
@@ -214,10 +181,10 @@ class PersonFollower:
             ratio = boxCenter / float(CAMERA_WIDTH)
             angle = -1 * (-SERVO_RANGE + ratio * 2 * SERVO_RANGE)
             if 0 < depth < MIN_DEPTH:
-                speed = -0.6
+                speed = -0.5
                 angle = -angle
             elif depth > MAX_DEPTH:
-                speed = 0.55
+                speed = 0.5
         self.last_angle = angle
         self.last_speed = speed
         return angle, speed
