@@ -7,6 +7,7 @@ from ackermann_msgs.msg import AckermannDriveStamped, AckermannDrive
 from sensor_msgs.msg import Joy, Image
 import numpy as np
 import message_filters
+import cv2
 
 br = CvBridge()
 
@@ -31,11 +32,25 @@ class PersonTracker:
     def img_cb(self, sub, img):
         image = br.imgmsg_to_cv2(img)
         # No average tracked box
-        if not self.average_tracked:
+        if self.average_tracked is None:
             if self.predicted_bounding_box:
                 bb = self.predicted_bounding_box 
-                person_region = image[bb.xmin:bb.xmax, bb.ymin:bb.ymax]
-                print person_region.shape
+                person_region = image[bb.ymin:bb.ymax, bb.xmin:bb.xmax]
+                self.average_tracked = cv2.resize(person_region, (64,128)) 
+        else:
+            if self.predicted_bounding_box:
+                bb = self.predicted_bounding_box
+                person_region = image[bb.ymin:bb.ymax, bb.xmin:bb.xmax]
+                
+                if person_region.size < 10:
+                    return
+                resized = cv2.resize(person_region, (64,128))
+                
+                print (1 - np.mean(np.abs(self.average_tracked - resized))/255.0)
+                if img.header.seq % 30 == 0:
+                    cv2.imwrite('average.png', self.average_tracked) 
+                self.average_tracked = self.average_tracked*0.9+0.1*resized
+
 
     def depth_cb(self, data):
         """Callback for messages from the depth camera. Relies on self.person_bounding_box and sets self.person_depth"""
@@ -43,7 +58,7 @@ class PersonTracker:
         image = br.imgmsg_to_cv2(data)
         timestamp, bb = self.bounding_boxes[-1]
         if bb is not None:
-            person_region = image[bb.xmin:bb.xmax, bb.ymin:bb.ymax]
+            person_region = image[bb.ymin:bb.ymax, bb.xmin:bb.xmax]
             # averaged_depth = np.mean(person_region)
             x_avg = (bb.xmin + bb.xmax) / 2
             y_avg = (bb.ymin + bb.ymax) / 2
@@ -52,7 +67,7 @@ class PersonTracker:
             # only update depth if we can actually see them
             if 0 <= x_avg < CAMERA_WIDTH and 0 < y_avg <= CAMERA_HEIGHT:
                 averaged_depth = image[y_avg, x_avg]
-                print "person at", x_avg, y_avg, "has depth", averaged_depth, "and size", person_region.size / float(CAMERA_AREA)
+                #print "person at", x_avg, y_avg, "has depth", averaged_depth, "and size", person_region.size / float(CAMERA_AREA)
                 # self.depth = averaged_depth
                 self.depths.append((rospy.get_time(), averaged_depth))
                 self.update_prediction()
