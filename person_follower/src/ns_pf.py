@@ -2,7 +2,7 @@
 import rospy
 from cv_bridge import CvBridge
 from std_msgs.msg import Header
-from darknet_ros_msgs.msg import BoundingBoxes
+from darknet_ros_msgs.msg import BoundingBox
 from ackermann_msgs.msg import AckermannDriveStamped, AckermannDrive
 from sensor_msgs.msg import Joy, Image
 import numpy as np
@@ -24,6 +24,7 @@ class PersonTracker:
         self.predicted_bounding_box = None
         self.predicted_depth = None
         self.prediction_confidence = 0
+        self.tracker_pub = rospy.Publisher('/personfollower/tracker_box', BoundingBox, queue_size=10)
 
     def depth_cb(self, data):
         """Callback for messages from the depth camera. Relies on self.person_bounding_box and sets self.person_depth"""
@@ -140,14 +141,16 @@ class PersonFollower:
         # subscriber setup
         sub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.tracker.bounding_box_cb)
         depth_sub = rospy.Subscriber('/camera/depth/image_rect_raw', Image, self.tracker.depth_cb)
-	joy_sub = rospy.Subscriber('/vesc/joy', Joy, self.right_bump)
+        joy_sub = rospy.Subscriber('/vesc/joy', Joy, self.right_bump)
         # publisher setup
-	pub = rospy.Publisher('/vesc/low_level/ackermann_cmd_mux/input/teleop', AckermannDriveStamped, queue_size=10)
+        pub = rospy.Publisher('/vesc/low_level/ackermann_cmd_mux/input/teleop', AckermannDriveStamped, queue_size=10)
         seq = 0
         rate = rospy.Rate(30)
         while not rospy.is_shutdown():
             seq += 1
             header = Header(seq=seq, stamp=rospy.Time.now())
+            if self.tracker.predicted_bounding_box != None:
+                self.tracker.tracker_pub.publish(self.tracker.predicted_bounding_box)
             angle, speed = self.get_steering_direction()
             if self.right_bumper and angle and speed:
                 pub.publish(AckermannDriveStamped(header, AckermannDrive(steering_angle=angle, speed=speed)))
@@ -185,7 +188,6 @@ class PersonFollower:
         self.last_angle = angle
         self.last_speed = speed
         return angle, speed
-
  
     def right_bump(self, data):
 	self.right_bumper = bool(data.buttons[5])
