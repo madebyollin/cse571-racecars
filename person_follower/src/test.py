@@ -6,6 +6,7 @@ from darknet_ros_msgs.msg import BoundingBoxes
 from ackermann_msgs.msg import AckermannDriveStamped, AckermannDrive
 from sensor_msgs.msg import Joy, Image
 import numpy as np
+import message_filters
 
 br = CvBridge()
 
@@ -24,6 +25,17 @@ class PersonTracker:
         self.predicted_bounding_box = None
         self.predicted_depth = None
         self.prediction_confidence = 0
+        
+
+        self.average_tracked = None
+    def img_cb(self, sub, img):
+        image = br.imgmsg_to_cv2(img)
+        # No average tracked box
+        if not self.average_tracked:
+            if self.predicted_bounding_box:
+                bb = self.predicted_bounding_box 
+                person_region = image[bb.xmin:bb.xmax, bb.ymin:bb.ymax]
+                print person_region.shape
 
     def depth_cb(self, data):
         """Callback for messages from the depth camera. Relies on self.person_bounding_box and sets self.person_depth"""
@@ -138,9 +150,14 @@ class PersonFollower:
         self.last_speed = 0
         self.last_angle = 0
         # subscriber setup
-        sub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.tracker.bounding_box_cb)
+        sub = message_filters.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes)
         depth_sub = rospy.Subscriber('/camera/depth/image_rect_raw', Image, self.tracker.depth_cb)
 	joy_sub = rospy.Subscriber('/vesc/joy', Joy, self.right_bump)
+        
+        img_sub = message_filters.Subscriber('/camera/color/image_raw', Image)
+        ts = message_filters.ApproximateTimeSynchronizer([sub, img_sub], 10, 0.1)
+        sub.registerCallback(self.tracker.bounding_box_cb)
+        ts.registerCallback(self.tracker.img_cb)
         # publisher setup
 	pub = rospy.Publisher('/vesc/low_level/ackermann_cmd_mux/input/teleop', AckermannDriveStamped, queue_size=10)
         seq = 0

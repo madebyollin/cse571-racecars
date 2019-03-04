@@ -5,6 +5,7 @@ from std_msgs.msg import Header
 from darknet_ros_msgs.msg import BoundingBoxes
 from ackermann_msgs.msg import AckermannDriveStamped, AckermannDrive
 from sensor_msgs.msg import Joy, Image
+from 
 import numpy as np
 
 br = CvBridge()
@@ -102,10 +103,11 @@ class PersonTracker:
         """Callback for messages from yolo. Sets self.person_bounding_box to be the largest / best matching bounding box"""
         best_match = None
         best_intersect = 0.0 
-        person_bounding_boxes = [x for x in data.bounding_boxes if x.Class == "person" and x.probability > 0.7 and size_of_bounding_box(x) / float(CAMERA_AREA) > 0.05]
+        person_bounding_boxes = [x for x in data.bounding_boxes if x.Class == "person" and x.probability > 0.55 and size_of_bounding_box(x) / float(CAMERA_AREA) > 0.05]
         if self.predicted_bounding_box == None and person_bounding_boxes:
             best_intersect = 1
             # find the biggest person bounding box and follow that
+            
             best_match = max(person_bounding_boxes, key=size_of_bounding_box)
         else:
             # if there is a person we're tracking
@@ -141,6 +143,7 @@ class PersonFollower:
         sub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.tracker.bounding_box_cb)
         depth_sub = rospy.Subscriber('/camera/depth/image_rect_raw', Image, self.tracker.depth_cb)
 	joy_sub = rospy.Subscriber('/vesc/joy', Joy, self.right_bump)
+        odom_sub = rospy.Subscriber('vsec/odom/twist/twist', Odom, self.odom)
         # publisher setup
 	pub = rospy.Publisher('/vesc/low_level/ackermann_cmd_mux/input/teleop', AckermannDriveStamped, queue_size=10)
         seq = 0
