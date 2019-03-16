@@ -30,6 +30,10 @@ We conducted ten walks through the robotics lab along the same path–the averag
 
 We build a person-following robot, yay!
 
+## Team Member Contributions
+
+We developed everything as a group.
+
 ## References
 
 - idk
