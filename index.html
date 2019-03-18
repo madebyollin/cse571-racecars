@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+    <meta charset="utf-8">
+    <title>A Person Following Robot</title>
+    <style style="text/css">
+        @import url('https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i');
+
+        * {
+            box-sizing: border-box;
+            padding: 0;
+            margin: 0;
+            color: #aaa;
+            text-decoration: none;
+            font-family: Nunito;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        *::selection {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        a {
+            font-weight: 500;
+            color: #1889f5;
+            font-size: inherit;
+            transition: 0.2s ease all;
+            cursor: pointer;
+
+            &:hover {
+                background: rgba(0, 0, 0, 0.1);
+                color: #0230B2;
+                text-decoration: none;
+            }
+        }
+
+        body,
+        html {
+            background: #202020;
+        }
+
+        p {
+            margin: 1em 0;
+        }
+
+        h1 {
+            width: 100%;
+            display: block;
+            padding: 0em;
+            text-align: center;
+            font-size: 4em;
+            font-weight: 100;
+            color: white;
+        }
+
+        h2 {
+            font-size: 1.5em;
+            text-align: left;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        h3 {
+            font-size: 1.1em;
+            text-align: left;
+            margin-bottom: 16px;
+            padding-top: 8px;
+            border-top: 1px solid #f0f0f0;
+            font-weight: 600;
+        }
+
+        h4 {
+            font-size: 1em;
+            text-align: left;
+            margin-bottom: 16px;
+            padding-top: 8px;
+            font-weight: 600;
+        }
+
+        hr {
+            border: 0;
+            border-top: 1px solid #f0f0f0;
+            margin: 1em 0;
+        }
+
+        main {
+            width: 40%;
+            height: 100vh;
+            position: absolute;
+            left: 0;
+            top:0;
+            padding: 32px;
+            overflow-y: scroll;
+        }
+        
+        #yt-vid {
+            width: 60%;
+            height: 100vh;
+            position: absolute;
+            right: 0;
+            top: 0;
+        }
+
+        img {
+            max-width: 100%;
+            margin: 1em auto;
+            border-radius: 0.5em;
+        }
+
+        code {
+            color: #202020;
+            background: #f8f8f8;
+            border: 1px solid #f0f0f0;
+            margin: -4px;
+            padding: 2px 4px;
+            margin-left: 2px;
+            margin-right: 2px;
+            font-size: 0.9em;
+            white-space: nowrap;
+            font-family: monospace;
+            user-select: all;
+        }
+
+        pre {
+            padding-left: 1em;
+            line-height: 1.5;
+            margin-bottom: 1em;
+            overflow: scroll;
+            font-family: monospace;
+            border-left: 2px solid #f0f0f0;
+            background: #f8f8f8;
+        }
+
+        blockquote {
+            padding-left: 1em;
+            line-height: 1.5;
+            margin: 1em 0;
+            color: #202020;
+            border-left: 2px solid #f0f0f0;
+        }
+
+        ul {
+            list-style-type: disc;
+            margin-left: 2em;
+        }
+
+        ol {
+            list-style-type: decimal;
+            margin-left: 2em;
+        }
+
+        table {
+            margin: 1em auto;
+            border-collapse: collapse;
+            border: 2px solid #f0f0f0;
+            width: 100%;
+
+            img {
+                width: auto;
+                height: auto;
+            }
+        }
+
+        td {
+            text-align: left;
+            padding: 1em;
+            color: #202020;
+        }
+
+        th {
+            padding: 1em;
+            color: black;
+            background: #f8f8f8;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <h1>A Person Following Robot</h1>
+        <p><a href="https://github.com/madebyollin/cse571-racecars/">github.com/madebyollin/cse571-racecars</a></p>
+        <p>We built a simple person-following robot for <a href="https://courses.cs.washington.edu/courses/cse571/19wi/" target="_blank">CSE 571</a>.</p>
+        <ul>
+            <li>The robot uses YOLOv3 for person detection</li>
+            <li>Detections are aggregated across time using area-of-intersection and visual similarity ranking, to avoid swapping people</li>
+            <li>The RealSense Stereo depthmap is used to estimate distance away from the user</li>
+        </ul>
+        <img src="robot-diagram.svg" width="80%"/>
+    </main>
+    <iframe id="yt-vid" src="https://www.youtube-nocookie.com/embed/kHBcVlqpvZ8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</body>
+
+</html>
