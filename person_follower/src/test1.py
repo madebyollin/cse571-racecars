@@ -36,9 +36,10 @@ class PersonTracker:
         # No average tracked box
         if self.average_tracked is None:
             if self.predicted_bounding_box:
-                bb = self.predicted_bounding_box 
+                print (self.predicted_bounding_box)
+                bb = self.predicted_bounding_box
                 person_region = image[bb.ymin:bb.ymax, bb.xmin:bb.xmax]
-                self.average_tracked = cv2.resize(person_region, (64,128)) 
+                self.average_tracked = cv2.resize(person_region, (32,64)) 
         else:
             if self.predicted_bounding_box:
                 bb = self.predicted_bounding_box
@@ -46,14 +47,14 @@ class PersonTracker:
                 
                 if person_region.size < 4:
                     return
-                resized = cv2.resize(person_region, (64,128))
+                resized = cv2.resize(person_region, (32,64))
                 
                 similarity = (1 - np.mean(np.abs(self.average_tracked - resized))/255.0)
-                print similarity
+                # print similarity
                 
                 if img.header.seq % 100 == 0:
                     cv2.imwrite('average.png', self.average_tracked) 
-                self.average_tracked = self.average_tracked*0.9+0.1*resized
+                self.average_tracked = self.average_tracked*0+1*resized
 
 
     def depth_cb(self, data):
@@ -129,33 +130,48 @@ class PersonTracker:
         #    bb = self.compute_predicted_bb()
         self.predicted_bounding_box = bb
 
-    def bounding_box_cb(self, data):
+    def bounding_box_cb(self, data, img):
         """Callback for messages from yolo. Sets self.person_bounding_box to be the largest / best matching bounding box"""
         best_match = None
+        image = br.imgmsg_to_cv2(img)
         best_intersect = 0.0 
-        person_bounding_boxes = [x for x in data.bounding_boxes if x.Class == "person" and x.probability > 0.6 and size_of_bounding_box(x) / float(CAMERA_AREA) > 0.05]
-        if self.predicted_bounding_box == None and person_bounding_boxes:
-            best_intersect = 1
+        person_bounding_boxes = [x for x in data.bounding_boxes if x.Class == "person" and x.probability > 0.7 and size_of_bounding_box(x) / float(CAMERA_AREA) > 0.05]
+        
+        # Sees no person
+        if len(person_bounding_boxes) < 1:
+            self.bounding_boxes.append((rospy.get_time(), best_match))
+            self.update_prediction()
+            if len(self.bounding_boxes) > 10:
+                self.bounding_boxes.pop(0)
+            return
+        # Sees people
+        # First time seeing person, follow biggest
+        if self.average_tracked == None:
             # find the biggest person bounding box and follow that
             best_match = max(person_bounding_boxes, key=size_of_bounding_box)
-        else:
-            # if there is a person we're tracking
-            # find best-matching bounding box
-            for new_bounding_box in person_bounding_boxes:
-                size = size_of_bounding_box(new_bounding_box)
-                intersect = area(new_bounding_box, self.predicted_bounding_box)
-                if intersect > best_intersect:
-                    best_match = new_bounding_box
-                    best_intersect = intersect
-        if best_match is not None:
-            p = self.predicted_bounding_box
-            prev_area = best_intersect # whatever
-            if p is not None:
-                prev_area = (p.ymax - p.ymin) * (p.xmax - p.xmin)
+        
+        # Seen person before, track most similar
+        if self.average_tracked != None:
+            
+            max_sim = 0.0
+            for bb in person_bounding_boxes:
+                person_region = image[bb.ymin:bb.ymax, bb.xmin:bb.xmax]  
+                if person_region.size < 4:
+                    continue
+                resized = cv2.resize(person_region, (32,64))
+                similarity = (1 - np.mean(np.abs(self.average_tracked - resized))/255.0)
+                if similarity > max_sim:
+                    max_sim = similarity
+                    if max_sim > 0.5:
+                        print("similarity is", max_sim)
+                        best_match = bb
+
+            
         self.bounding_boxes.append((rospy.get_time(), best_match))
         self.update_prediction()
         if len(self.bounding_boxes) > 10:
             self.bounding_boxes.pop(0)
+        
 
 class PersonFollower:
     def __init__(self):
@@ -175,7 +191,10 @@ class PersonFollower:
         
         img_sub = message_filters.Subscriber('/camera/color/image_raw', Image)
         ts = message_filters.ApproximateTimeSynchronizer([sub, img_sub], 10, 0.1)
-        sub.registerCallback(self.tracker.bounding_box_cb)
+        
+
+        #sub.registerCallback(self.tracker.bounding_box_cb)
+        ts.registerCallback(self.tracker.bounding_box_cb)
         ts.registerCallback(self.tracker.img_cb)
         # publisher setup
 	pub = rospy.Publisher('/vesc/low_level/ackermann_cmd_mux/input/teleop', AckermannDriveStamped, queue_size=10)
@@ -221,7 +240,7 @@ class PersonFollower:
                 speed = -0.6
                 angle = -angle
             elif depth > MAX_DEPTH:
-                speed = 0.5
+                speed = 0.55
         self.last_angle = angle
         self.last_speed = speed
         return angle, speed

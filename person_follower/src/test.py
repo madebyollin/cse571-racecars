@@ -133,7 +133,7 @@ class PersonTracker:
         """Callback for messages from yolo. Sets self.person_bounding_box to be the largest / best matching bounding box"""
         best_match = None
         best_intersect = 0.0 
-        person_bounding_boxes = [x for x in data.bounding_boxes if x.Class == "person" and x.probability > 0.6 and size_of_bounding_box(x) / float(CAMERA_AREA) > 0.05]
+        person_bounding_boxes = [x for x in data.bounding_boxes if x.Class == "person" and x.probability > 0.7 and size_of_bounding_box(x) / float(CAMERA_AREA) > 0.05]
         if self.predicted_bounding_box == None and person_bounding_boxes:
             best_intersect = 1
             # find the biggest person bounding box and follow that
@@ -221,7 +221,7 @@ class PersonFollower:
                 speed = -0.6
                 angle = -angle
             elif depth > MAX_DEPTH:
-                speed = 0.5
+                speed = 0.55
         self.last_angle = angle
         self.last_speed = speed
         return angle, speed
