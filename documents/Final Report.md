@@ -62,11 +62,14 @@ Since the perception input is noisy (and detection quality decreases when the ro
 
 ## Evaluation
 
-We conducted ten walks through the robotics lab along the same path–the average time before a disengagement was <amount>. So it's okay. We also conducted tests to make sure it could successfully track people in the presence of other people.
+**TODO:** We conducted ten walks through the robotics lab along the same path–the average time before a disengagement was <amount>. So it's okay. We also conducted tests to make sure it could successfully track people in the presence of other people.
 
-## Conclusion
+## Conclusion and Future Work
 
-We build a person-following robot, yay!
+We have demonstrated a simple person-following robot capable of following a subject under typical circumstances. Potential improvements to robustness include:
+
+- **Integration of wheel odometry**: odometry can be used to enhance our system in two key ways; first, it can be combined with a history of visual tracking boxes to perform motion prediction for the tracked subject, which will improve tracking in cases of occlusion or poor visibility. Second, odometry can be used for simple obstacle response–if odometry reports that the robot is stuck, the robot can execute a simple fixed action pattern for recovery (say, driving backwards a bit, then laterally).
+- **Visual obstacle avoidance:** the stereo depth map can be used for simple reactive obstacle avoidance (by trying to select a direction such that the central lane has high depth values), or as part of a more sophisticated SLAM system (e.g. ORB-SLAM2) for advanced obstacle avoidance and multi-frame planning.
 
 ## Team Member Contributions
 
@@ -75,7 +78,3 @@ We developed everything as a group. Although all team members have modified all 
 * **Nansong** worked on visualization and the initial tracking code
 * **Thomas** worked on visual similarity and improving controller robustness
 * **Ollin** wrote the initial controller and also set up initial drafts for the poster and report.
-
-## References
-
-- TODO
