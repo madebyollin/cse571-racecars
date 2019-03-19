@@ -36,6 +36,10 @@ The following approach does use CNNs (online, rather than pre-trained) for perso
 
 > We used a depth camera, YOLO, and a simple reactive controller. You can see it in action here.
 
+\vspace{0.5em}\begin{center}
+\includegraphics[width=0.8\textwidth]{diagram.pdf}
+\end{center}
+
 ### Perception
 
 The foundation of our perception system is the `darknet` ROS package, which provides YOLOv3 tracking boxes at 30hz. From these per-frame tracking boxes we filter out high-confidence person boxes, discard implausibly small or large boxes, and decide on an initial match based on closeness to the camera.
