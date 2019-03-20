@@ -24,13 +24,13 @@ Additionally, the task is simple enough to be implemented within the allotted ti
 
 Person-following is a straightforward application of modern tracking algorithms to a mobile robot platform, and, as such, there have been several implementations of this concept on various platforms. For the most part, however, these implementations have had minimal obstacle avoidance capability and have used classical computer vision approaches rather than CNNs for the tracking component.
 
-- https://www.researchgate.net/publication/326019139_HUMAN_FOLLOWING_ON_ROS_FRAMEWORK_A_MOBILE_ROBOT
-- https://medium.com/@waleedmansoor/make-human-following-robot-using-realsense-camera-3a67b29921fd
-- https://github.com/pusnik/robot-human-follower
+- [Human Following on ROS Framework A Mobile Robot](https://www.researchgate.net/publication/326019139_HUMAN_FOLLOWING_ON_ROS_FRAMEWORK_A_MOBILE_ROBOT)
+- [Building a human following robot using RealSense camera](https://medium.com/@waleedmansoor/make-human-following-robot-using-realsense-camera-3a67b29921fd)
+- [robot-human-follower](https://github.com/pusnik/robot-human-follower)
 
 The following approach does use CNNs (online, rather than pre-trained) for person tracking, but is closed-source:
 
-- https://www.semanticscholar.org/paper/Integrating-Stereo-Vision-with-a-CNN-Tracker-for-a-Chen-Sahdev/2067a5a4e8851bf8083285a33f542229792f1826
+- [Integrating Stereo Vision with a CNN Tracker for a Person-Following Robot](https://www.semanticscholar.org/paper/Integrating-Stereo-Vision-with-a-CNN-Tracker-for-a-Chen-Sahdev/2067a5a4e8851bf8083285a33f542229792f1826)
 
 ## Methodology
 
@@ -52,9 +52,7 @@ The tracked bounding box (and its confidence) are sent to an additional node for
 
 ### Control
 
-The robot uses a simple reactive control system. 
-
-Speed is determined based on the estimated depth from the tracked target; the speed is positive if the depth is too great, and negative if the depth is too small. The minimum torque on the robot is too high to follow a walking human precisely (the robot must either be not moving, or moving at a fast walking pace), so there is a "safe zone" of distances in which the robot will not move forward or backward.
+The robot uses a simple reactive control system.  Speed is determined based on the estimated depth from the tracked target; the speed is positive if the depth is too great, and negative if the depth is too small. The minimum torque on the robot is too high to follow a walking human precisely (the robot must either be not moving, or moving at a fast walking pace), so there is a "safe zone" of distances in which the robot will not move forward or backward.
 
 Steering angle is determined proportional to the subject's lateral position in the image; the angle is selected such that the robot will end up facing the subject after driving forward, and is continually adjusted during movement. Angles are reversed when driving backwards (to keep the subject in the frame).
 
@@ -62,7 +60,12 @@ Since the perception input is noisy (and detection quality decreases when the ro
 
 ## Evaluation
 
-**TODO:** We conducted ten walks through the robotics lab along the same path–the average time before a disengagement was <amount>. So it's okay. We also conducted tests to make sure it could successfully track people in the presence of other people.
+We conducted indoor and outdoor testing of the final system and observed the following (qualitative) results:
+
+* Under ideal circumstances, the robot is capable of following indefinitely (until the battery runs out).
+* Indoors, the most common problem is getting stuck on obstacles (for example, chair legs). The robot's camera is oriented upwards to make detection easier, so proximate obstacles are difficult to handle visually. In simple spaces this is not a problem, since the path traversed by humans is typically obstacle free.
+* Outdoors, the most common problem was missed detections due to the lack of dynamic range in the camera (which yielded silhouette-like images with low prediction confidence). Tuning detection thresholds to allow less-probable matches improved this behavior, but potentially at the risk of following false-positive detections (e.g. reflections or human-like objects).
+* One interesting result: the robot detects human robots (e.g. the PR2) as people, with moderate confidence.
 
 ## Conclusion and Future Work
 
