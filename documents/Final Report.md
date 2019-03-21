@@ -46,9 +46,7 @@ The foundation of our perception system is the `darknet` ROS package, which prov
 
 Distance from the person is determined by masking the stereo camera's depth output to the bounding box area and selecting a central value.
 
-Once an initial match is determined, the system compares matches on each subsequent frame to the existing match and ranks the potential matches according to bounding box overlap. We have also tried to incorporate visual similarity (using a structural similarity metric on the cropped region) for identifying the same person across framed and reidentifying the same person after losing track.
-
-The tracked bounding box (and its confidence) are sent to an additional node for visualization.
+Once an initial match is determined, the system compares matches on each subsequent frame to the existing match and ranks the potential matches according to bounding box overlap. We have also tried to incorporate visual similarity (using a structural similarity metric on the cropped region) for identifying the same person across framed and reidentifying the same person after losing track.  The tracked bounding box (and its confidence) are sent to an additional node for visualization.
 
 ### Control
 
