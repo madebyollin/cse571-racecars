@@ -42,11 +42,11 @@ The following approach does use CNNs (online, rather than pre-trained) for perso
 
 ### Perception
 
-The foundation of our perception system is the `darknet` ROS package, which provides YOLOv3 tracking boxes at 30hz. From these per-frame tracking boxes we filter out high-confidence person boxes, discard implausibly small or large boxes, and decide on an initial match based on closeness to the camera.
+The foundation of our perception system is the `darknet` ROS package, which provides YOLOv3 tracking boxes at 30hz. From these per-frame tracking boxes we filter out high-confidence person boxes, discard implausibly small boxes, and decide on an initial match based on closeness to the camera.
 
 Distance from the person is determined by masking the stereo camera's depth output to the bounding box area and selecting a central value.
 
-Once an initial match is determined, the system compares matches on each subsequent frame to the existing match and ranks the potential matches according to visual similarity (using a structural similarity metric on the cropped region) as well as bounding box overlap.
+Once an initial match is determined, the system compares matches on each subsequent frame to the existing match and ranks the potential matches according to bounding box overlap. We have also tried to incorporate visual similarity (using a structural similarity metric on the cropped region) for identifying the same person across framed and reidentifying the same person after losing track.
 
 The tracked bounding box (and its confidence) are sent to an additional node for visualization.
 
@@ -62,7 +62,7 @@ Since the perception input is noisy (and detection quality decreases when the ro
 
 We conducted indoor and outdoor testing of the final system and observed the following (qualitative) results:
 
-* Under ideal circumstances, the robot is capable of following indefinitely (until the battery runs out).
+* Under ideal circumstances (good lighting, no obsticles) the robot is capable of following indefinitely (until the battery runs out).
 * Indoors, the most common problem is getting stuck on obstacles (for example, chair legs). The robot's camera is oriented upwards to make detection easier, so proximate obstacles are difficult to handle visually. In simple spaces this is not a problem, since the path traversed by humans is typically obstacle free.
 * Outdoors, the most common problem was missed detections due to the lack of dynamic range in the camera (which yielded silhouette-like images with low prediction confidence). Tuning detection thresholds to allow less-probable matches improved this behavior, but potentially at the risk of following false-positive detections (e.g. reflections or human-like objects).
 * One interesting result: the robot detects human robots (e.g. the PR2) as people, with moderate confidence.
